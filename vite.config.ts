@@ -38,11 +38,18 @@ export default defineConfig({
             '@': path.resolve(__dirname, './resources/js'),
         },
     },
-    // Add build configuration for better development experience
+    // Add build configuration for better development experience and fix chunk size
     build: {
+        chunkSizeWarningLimit: 1000, // Increase limit to 1000KB
         rollupOptions: {
             output: {
-                manualChunks: undefined,
+                // Split large dependencies into separate chunks
+                manualChunks: {
+                    'vue-vendor': ['vue', '@inertiajs/vue3'],
+                    'ui-vendor': ['reka-ui', 'lucide-vue-next'],
+                    'chart-vendor': ['chart.js', 'vue-chartjs'],
+                    'utils': ['clsx', 'tailwind-merge', '@vueuse/core'],
+                },
             },
         },
     },
