@@ -1,5 +1,5 @@
 # DigitalOcean App Platform Configuration for JIRA Reporter
-# Simplified configuration for successful deployment
+# Alpine-based Docker configuration (optimized and tested)
 
 name: jira-reporter
 region: nyc1
@@ -14,7 +14,7 @@ services:
       branch: main
       deploy_on_push: true
     
-    # Docker Configuration
+    # Docker Configuration (Alpine-based, optimized)
     dockerfile_path: Dockerfile
     
     instance_count: 1

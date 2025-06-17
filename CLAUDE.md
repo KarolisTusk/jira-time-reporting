@@ -331,37 +331,46 @@ Recent fixes handle new sync types:
 - **Resource Type Classification**: Enhanced keyword matching with priority-based detection
 - **SQLite Compatibility**: Database-agnostic migrations for development testing
 
-## Docker Deployment Optimizations
+## Docker Deployment (Standardized Configuration)
 
-### **Optimized Docker Images**
-The application includes optimized Docker configurations for efficient deployment:
+### **Single Docker Configuration**
+The application uses a **standardized Alpine-based Docker setup**:
 
-#### **Dockerfile.digitalocean** (Production-Ready)
-- **Multi-stage build**: Separate frontend and backend building
-- **Optimized dependencies**: Runtime vs build dependencies properly separated
-- **Reduced image size**: ~50-100MB smaller through dependency optimization
-- **Security improvements**: Fewer packages = reduced attack surface
+#### **Main Dockerfile** (Production-Ready)
+- **Base**: `php:8.2-fpm-alpine` (lightweight and secure)
+- **Multi-stage build**: Frontend (Node.js) + Backend (PHP-FPM + nginx)
+- **Image size**: ~592MB (optimized for DigitalOcean App Platform)
+- **Health check**: Built-in `/health` endpoint
 
-#### **Key Optimizations Applied:**
-- **Removed unused runtime dependencies**: `redis` (server), `git`, `zip/unzip`
-- **Build dependency management**: Virtual packages for clean removal
-- **PHP extension optimization**: All extensions built in single layer
-- **Health check**: Uses standard Laravel endpoint (`/`)
+#### **Key Features:**
+- **Alpine Linux**: Minimal security footprint
+- **Supervisor**: Process management for nginx + php-fpm
+- **Laravel optimizations**: Config, routes, and views cached
+- **Redis support**: Via Alpine package (no compilation)
+- **PostgreSQL**: Native support for Neon database
 
-#### **Dependencies Organization:**
-```dockerfile
-# Runtime only (kept in final image)
-RUN apk add nginx supervisor curl bash libpng libjpeg freetype icu libzip
-
-# Build dependencies (removed after use)
-RUN apk add --virtual .build-deps autoconf gcc g++ make postgresql-dev...
+#### **Configuration Files:**
+```
+docker/digitalocean/
+├── nginx.conf          # Web server configuration
+├── default.conf        # Server block (port 8080)
+├── supervisord.conf    # Process management
+└── php.ini             # PHP optimizations
 ```
 
-### **Performance Benefits**
-- ⚡ **Faster deployments**: Smaller images transfer quicker
-- 🔒 **Enhanced security**: Minimal attack surface
-- 💾 **Reduced storage**: ~20% smaller Docker images
-- 🚀 **Better caching**: Optimized layer structure
+### **Deployment Options**
+- **Local testing**: `docker build -t jira-reporter .`
+- **Docker Hub**: `docker push YOUR_USERNAME/jira-reporter`
+- **DigitalOcean Registry**: `docker push registry.digitalocean.com/YOUR_REGISTRY/jira-reporter`
+- **App Platform**: Uses `app-spec.yaml` for deployment
+
+### **Legacy Cleanup**
+All legacy Docker configurations have been archived:
+- ✅ Single `Dockerfile` (Alpine-based)
+- ✅ Unified configuration in `docker/digitalocean/`
+- ✅ Legacy files moved to `docker/legacy/` and `deploy/legacy/`
+
+See `DOCKER_DEPLOYMENT.md` for complete deployment instructions.
 
 ## Version Info
 - **Current**: v7.0.0 - JIRA Initiatives Feature + Docker Optimizations (June 2025)

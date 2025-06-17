@@ -1,0 +1,65 @@
+name: jira-reporting
+services:
+- name: web
+  source_dir: /
+  github:
+    repo: KarolisTusk/jira-time-reporting
+    branch: main
+    deploy_on_push: true
+  dockerfile_path: Dockerfile
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 8080
+  envs:
+  - key: APP_ENV
+    value: production
+  - key: APP_DEBUG
+    value: "false"
+  - key: APP_KEY
+    value: "base64:8+igkz4+EsNA+E7e3G+gCQdbePDCNmpvOdykoZggzdg="
+  - key: APP_NAME
+    value: "JIRA Time Reporter"
+  - key: DB_CONNECTION
+    value: pgsql
+  - key: DB_HOST
+    value: ep-green-river-a5ojrjkn-pooler.us-east-2.aws.neon.tech
+  - key: DB_PORT
+    value: "5432"
+  - key: DB_DATABASE
+    value: jira_reporter
+  - key: DB_USERNAME
+    value: neondb_owner
+  - key: DB_PASSWORD
+    value: npg_Sq8A4BWgsTPl
+  - key: DB_SSLMODE
+    value: require
+  - key: REDIS_CLIENT
+    value: phpredis
+  - key: REDIS_URL
+    value: "redis://default:sHH1dlPnzp2WOGJsrgHdgsXh8XLZdznq@redis-17950.c309.us-east-2-1.ec2.redns.redis-cloud.com:17950"
+  - key: REDIS_HOST
+    value: redis-17950.c309.us-east-2-1.ec2.redns.redis-cloud.com
+  - key: REDIS_PORT
+    value: "17950"
+  - key: REDIS_PASSWORD
+    value: sHH1dlPnzp2WOGJsrgHdgsXh8XLZdznq
+  - key: REDIS_USERNAME
+    value: default
+  - key: REDIS_DB
+    value: "0"
+  - key: REDIS_CACHE_DB
+    value: "1"
+  - key: CACHE_STORE
+    value: redis
+  - key: SESSION_DRIVER
+    value: redis
+  - key: QUEUE_CONNECTION
+    value: redis
+# Using external Redis Cloud instead of managed DigitalOcean Redis
+# databases:
+# - name: jira-redis
+#   engine: REDIS
+#   version: "7"
+#   production: true
+#   cluster_name: jira-reporter-redis
+#   size: db-s-1vcpu-1gb 
