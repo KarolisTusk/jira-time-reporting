@@ -6,7 +6,7 @@ services:
     repo: KarolisTusk/jira-time-reporting
     branch: main
     deploy_on_push: true
-  dockerfile_path: Dockerfile.digitalocean
+  dockerfile_path: Dockerfile
   instance_count: 1
   instance_size_slug: basic-xxs
   http_port: 8080

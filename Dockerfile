@@ -7,6 +7,9 @@ FROM node:20-alpine AS frontend-builder
 ARG CACHE_BUST=2025-06-17-07-05
 RUN echo "Frontend Cache bust: $CACHE_BUST"
 
+# Update npm to latest version
+RUN npm install -g npm@11.4.2
+
 WORKDIR /app
 
 # Copy package files and install dependencies
@@ -59,8 +62,8 @@ RUN apk add --no-cache --virtual .build-deps \
     apk del .build-deps
 
 # Install Redis extension via Alpine package (avoid compilation issues)
-# Cache bust: 2025-06-17-07:05 - Force rebuild from this point
-RUN apk add --no-cache php82-pecl-redis && \
+# Cache bust: 2025-06-17-07:10 - Force rebuild from this point
+RUN apk add --no-cache php82-redis && \
     echo "extension=redis.so" > /usr/local/etc/php/conf.d/20-redis.ini && \
     echo "Redis extension installed successfully" && \
     php -m | grep redis || echo "Redis extension check failed"
