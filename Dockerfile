@@ -1,39 +1,52 @@
-# Multi-stage build for JIRA Time Reporting App
-# Optimized for Laravel 12 + Vue 3 + PostgreSQL + Queue processing
+# DigitalOcean App Platform Optimized Dockerfile (PRODUCTION VERSION)
+# Designed for Laravel 12 + Vue 3 + Queue Processing
 
 FROM node:20-alpine AS frontend-builder
 
+# Cache bust to force complete rebuild - 2025-06-17-07:05
+ARG CACHE_BUST=2025-06-17-07-05
+RUN echo "Frontend Cache bust: $CACHE_BUST"
+
 WORKDIR /app
 
-# Copy package files
+# Copy package files and install dependencies
 COPY package*.json ./
 RUN npm ci --only=production
 
-# Copy source and build
+# Copy source files and build frontend assets
 COPY . .
 RUN npm run build
 
-# Production PHP image
+# Production PHP image optimized for DigitalOcean
 FROM php:8.2-fpm-alpine
 
-# Install system dependencies
+# Cache bust to force rebuild of PHP layers - 2025-06-17-07:05
+ARG CACHE_BUST=2025-06-17-07-05
+RUN echo "PHP Cache bust: $CACHE_BUST - NO MORE PECL INSTALL REDIS"
+
+# Install runtime dependencies only (truly optimized - removed redis server, git, zip)
 RUN apk add --no-cache \
     nginx \
     supervisor \
-    postgresql-dev \
-    redis \
-    zip \
-    unzip \
-    git \
     curl \
+    bash \
+    libpng \
+    libjpeg-turbo \
+    freetype \
+    icu \
+    libzip
+
+# Install build dependencies and build PHP extensions (skip Redis - use pre-built)
+RUN apk add --no-cache --virtual .build-deps \
+    postgresql-dev \
     libpng-dev \
     libjpeg-turbo-dev \
     freetype-dev \
     icu-dev \
     oniguruma-dev \
-    libzip-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install \
+    libzip-dev && \
+    docker-php-ext-configure gd --with-freetype --with-jpeg && \
+    docker-php-ext-install \
         pdo \
         pdo_pgsql \
         gd \
@@ -41,9 +54,12 @@ RUN apk add --no-cache \
         mbstring \
         zip \
         bcmath \
-        opcache
+        opcache \
+        pcntl && \
+    apk del .build-deps
 
 # Install Redis extension via Alpine package (avoid compilation issues)
+# Cache bust: 2025-06-17-07:05 - Force rebuild from this point
 RUN apk add --no-cache php82-pecl-redis && \
     echo "extension=redis.so" > /usr/local/etc/php/conf.d/redis.ini
 
@@ -53,11 +69,9 @@ COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
 # Create application directory
 WORKDIR /var/www/html
 
-# Copy composer files
+# Copy composer files and install dependencies
 COPY composer.json composer.lock ./
-
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
 
 # Copy application files
 COPY . .
@@ -65,27 +79,56 @@ COPY . .
 # Copy built frontend assets from builder stage
 COPY --from=frontend-builder /app/public/build ./public/build
 
-# Set permissions
+# Set proper permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html/storage \
     && chmod -R 755 /var/www/html/bootstrap/cache
 
-# Copy configuration files
-COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
-COPY docker/nginx/default.conf /etc/nginx/http.d/default.conf
-COPY docker/supervisor/supervisord.conf /etc/supervisord.conf
-COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-custom.ini
+# Copy DigitalOcean specific configuration
+COPY docker/digitalocean/nginx.conf /etc/nginx/nginx.conf
+COPY docker/digitalocean/default.conf /etc/nginx/http.d/default.conf
+COPY docker/digitalocean/supervisord.conf /etc/supervisord.conf
+COPY docker/digitalocean/php.ini /usr/local/etc/php/conf.d/99-digitalocean.ini
 
 # Create required directories
 RUN mkdir -p /var/log/supervisor \
-    && mkdir -p /run/nginx
+    && mkdir -p /run/nginx \
+    && mkdir -p /var/www/html/storage/logs
 
-# Health check for DigitalOcean App Platform
+# Generate optimized autoloader
+RUN composer dump-autoload --optimize
+
+# Health check for DigitalOcean
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/ || exit 1
 
-# Expose port 8080 for DigitalOcean App Platform
+# Expose DigitalOcean App Platform port
 EXPOSE 8080
 
-# For DigitalOcean App Platform - use simple Laravel server instead of supervisor
-CMD ["sh", "-c", "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8080"]
+# Create startup script for DigitalOcean
+RUN echo '#!/bin/bash' > /start.sh \
+    && echo 'set -e' >> /start.sh \
+    && echo '' >> /start.sh \
+    && echo '# Ensure storage directories exist' >> /start.sh \
+    && echo 'mkdir -p /var/www/html/storage/{app,framework,logs}' >> /start.sh \
+    && echo 'mkdir -p /var/www/html/storage/framework/{cache,sessions,views}' >> /start.sh \
+    && echo '' >> /start.sh \
+    && echo '# Set proper permissions' >> /start.sh \
+    && echo 'chown -R www-data:www-data /var/www/html/storage' >> /start.sh \
+    && echo 'chown -R www-data:www-data /var/www/html/bootstrap/cache' >> /start.sh \
+    && echo '' >> /start.sh \
+    && echo '# Wait for database to be ready' >> /start.sh \
+    && echo 'echo "Waiting for database connection..."' >> /start.sh \
+    && echo 'php artisan migrate:status --quiet || sleep 10' >> /start.sh \
+    && echo '' >> /start.sh \
+    && echo '# Run Laravel optimization commands' >> /start.sh \
+    && echo 'php artisan config:cache' >> /start.sh \
+    && echo 'php artisan route:cache' >> /start.sh \
+    && echo 'php artisan view:cache' >> /start.sh \
+    && echo '' >> /start.sh \
+    && echo '# Start services with supervisor' >> /start.sh \
+    && echo 'exec /usr/bin/supervisord -c /etc/supervisord.conf' >> /start.sh \
+    && chmod +x /start.sh
+
+# Start with our custom script
+CMD ["/start.sh"]
