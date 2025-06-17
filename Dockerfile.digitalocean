@@ -51,6 +51,7 @@ RUN apk add --no-cache --virtual .build-deps \
     apk del .build-deps
 
 # Install Redis extension via Alpine package (avoid compilation issues)
+# Cache bust: 2025-06-17-06:50 - Force rebuild from this point
 RUN apk add --no-cache php82-pecl-redis && \
     echo "extension=redis.so" > /usr/local/etc/php/conf.d/redis.ini
 
