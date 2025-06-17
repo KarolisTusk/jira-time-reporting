@@ -1,14 +1,12 @@
-name: jira-reporter
+name: jira-reporting
 services:
 - name: web
   source_dir: /
   github:
-    repo: KarolisTusk/jira-reporter
+    repo: KarolisTusk/jira-time-reporting
     branch: main
     deploy_on_push: true
-  build_command: composer install --no-dev --optimize-autoloader --no-interaction && npm ci && npm run build
-  run_command: php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8080
-  environment_slug: php
+  dockerfile_path: Dockerfile.digitalocean
   instance_count: 1
   instance_size_slug: basic-xxs
   http_port: 8080
@@ -35,6 +33,24 @@ services:
     value: npg_Sq8A4BWgsTPl
   - key: DB_SSLMODE
     value: require
+  - key: REDIS_CLIENT
+    value: phpredis
+  - key: REDIS_HOST
+    value: ${jira-redis.HOSTNAME}
+  - key: REDIS_PORT
+    value: ${jira-redis.PORT}
+  - key: REDIS_PASSWORD
+    value: ${jira-redis.PASSWORD}
+  - key: REDIS_DB
+    value: "0"
+  - key: REDIS_CACHE_DB
+    value: "1"
+  - key: CACHE_STORE
+    value: redis
+  - key: SESSION_DRIVER
+    value: redis
+  - key: QUEUE_CONNECTION
+    value: redis
 databases:
 - name: jira-redis
   engine: REDIS
