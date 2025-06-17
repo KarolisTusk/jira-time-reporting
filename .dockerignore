@@ -36,19 +36,16 @@ bootstrap/cache/
 .git/
 .gitignore
 
-# Docker
-Dockerfile
+# Docker (keep Dockerfiles for reference but exclude compose files)
 docker-compose*.yml
-.dockerignore
 
-# Documentation
+# Documentation (keep essential docs)
 README.md
 docs/
-*.md
 
-# Tests
-tests/
-phpunit.xml
+# Tests (keep for potential CI/CD)
+# tests/
+# phpunit.xml
 .phpunit.result.cache
 
 # Deployment
