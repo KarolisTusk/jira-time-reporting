@@ -16,7 +16,7 @@ RUN npm run build
 # Production PHP image optimized for DigitalOcean
 FROM php:8.2-fpm-alpine
 
-# Install system dependencies
+# Install system dependencies including build tools
 RUN apk add --no-cache \
     nginx \
     supervisor \
@@ -33,6 +33,10 @@ RUN apk add --no-cache \
     oniguruma-dev \
     libzip-dev \
     bash \
+    autoconf \
+    gcc \
+    g++ \
+    make \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
         pdo \
@@ -42,10 +46,14 @@ RUN apk add --no-cache \
         mbstring \
         zip \
         bcmath \
-        opcache
+        opcache \
+        pcntl
 
-# Install Redis extension
+# Install Redis extension with build dependencies
 RUN pecl install redis && docker-php-ext-enable redis
+
+# Clean up build dependencies to reduce image size
+RUN apk del autoconf gcc g++ make
 
 # Install Composer
 COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
