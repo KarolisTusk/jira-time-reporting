@@ -3,6 +3,9 @@
 
 FROM node:20-alpine AS frontend-builder
 
+# Cache bust to force rebuild
+ARG CACHE_BUST=2025-06-17-06-55
+
 WORKDIR /app
 
 # Copy package files and install dependencies
@@ -15,6 +18,10 @@ RUN npm run build
 
 # Production PHP image optimized for DigitalOcean
 FROM php:8.2-fpm-alpine
+
+# Cache bust to force rebuild of PHP layers
+ARG CACHE_BUST=2025-06-17-06-55
+RUN echo "PHP Cache bust: $CACHE_BUST"
 
 # Install runtime dependencies and pre-built Redis extension
 RUN apk add --no-cache \
