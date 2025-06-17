@@ -16,23 +16,17 @@ RUN npm run build
 # Production PHP image optimized for DigitalOcean
 FROM php:8.2-fpm-alpine
 
-# Install runtime dependencies first
+# Install runtime dependencies only
 RUN apk add --no-cache \
     nginx \
     supervisor \
-    postgresql-dev \
-    redis \
-    zip \
-    unzip \
-    git \
     curl \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
-    icu-dev \
-    oniguruma-dev \
-    libzip-dev \
-    bash
+    bash \
+    libpng \
+    libjpeg-turbo \
+    freetype \
+    icu \
+    libzip
 
 # Install build dependencies and build all PHP extensions in one step
 RUN apk add --no-cache --virtual .build-deps \
@@ -41,6 +35,13 @@ RUN apk add --no-cache --virtual .build-deps \
     g++ \
     make \
     m4 \
+    postgresql-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    icu-dev \
+    oniguruma-dev \
+    libzip-dev \
     && export PHP_AUTOCONF=/usr/bin/autoconf \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
@@ -94,7 +95,7 @@ RUN composer dump-autoload --optimize
 
 # Health check for DigitalOcean
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+    CMD curl -f http://localhost:8080/ || exit 1
 
 # Expose DigitalOcean App Platform port
 EXPOSE 8080
