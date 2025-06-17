@@ -1,0 +1,68 @@
+# DigitalOcean App Platform Configuration for JIRA Reporter
+# Simplified configuration for successful deployment
+
+name: jira-reporter
+region: nyc1
+
+# Services Configuration
+services:
+  # Main Laravel Application
+  - name: web
+    source_dir: /jira-reporter
+    github:
+      repo: KarolisTusk/jira-reporter
+      branch: main
+      deploy_on_push: true
+    
+    # Docker Configuration
+    dockerfile_path: Dockerfile
+    
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    
+    # HTTP Configuration
+    http_port: 8080
+    
+    # Environment Variables
+    envs:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        value: "base64:8+igkz4+EsNA+E7e3G+gCQdbePDCNmpvOdykoZggzdg="
+      - key: APP_NAME
+        value: "JIRA Time Reporter"
+      
+      # Database Connection (Neon PostgreSQL)
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        value: ep-green-river-a5ojrjkn-pooler.us-east-2.aws.neon.tech
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_DATABASE
+        value: jira_reporter
+      - key: DB_USERNAME
+        value: neondb_owner
+      - key: DB_PASSWORD
+        value: npg_Sq8A4BWgsTPl
+      - key: DB_SSLMODE
+        value: require
+      
+      # Cache and Queue Configuration (Database-based for simplicity)
+      - key: CACHE_STORE
+        value: database
+      - key: SESSION_DRIVER
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+      
+      # Security
+      - key: BCRYPT_ROUNDS
+        value: "12"
+      - key: LOG_LEVEL
+        value: error
+
+# Database configuration is external (Neon PostgreSQL)
+

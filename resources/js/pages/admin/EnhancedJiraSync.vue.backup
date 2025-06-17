@@ -1,0 +1,477 @@
+<template>
+  <AppLayout>
+    <template #header>
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-semibold text-gray-900">Enhanced JIRA Sync</h1>
+          <p class="mt-1 text-sm text-gray-600">
+            Advanced synchronization controls with incremental sync, resource classification, and real-time progress tracking.
+          </p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <Badge 
+            :variant="connectionStatus.connected ? 'success' : 'destructive'"
+            class="text-xs"
+          >
+            {{ connectionStatus.connected ? 'Connected' : 'Disconnected' }}
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            @click="testConnection"
+            :disabled="testingConnection"
+          >
+            <IconWifi class="w-4 h-4 mr-2" />
+            {{ testingConnection ? 'Testing...' : 'Test Connection' }}
+          </Button>
+        </div>
+      </div>
+    </template>
+
+    <div class="space-y-6">
+      <!-- Status Overview Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard
+          title="Total Projects"
+          :value="stats.totalProjects"
+          icon="IconFolders"
+          :loading="loadingStats"
+        />
+        <StatsCard
+          title="Last Sync"
+          :value="stats.lastSyncFormatted"
+          icon="IconClock"
+          :loading="loadingStats"
+        />
+        <StatsCard
+          title="Total Hours"
+          :value="stats.totalHours"
+          icon="IconCalendar"
+          :loading="loadingStats"
+        />
+        <StatsCard
+          title="Active Syncs"
+          :value="stats.activeSyncs"
+          icon="IconRefresh"
+          :loading="loadingStats"
+          :variant="stats.activeSyncs > 0 ? 'warning' : 'default'"
+        />
+      </div>
+
+      <!-- Main Content Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column: Sync Controls -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Sync Control Panel -->
+          <Card>
+            <CardHeader>
+              <CardTitle class="flex items-center">
+                <IconSettings class="w-5 h-5 mr-2" />
+                Sync Configuration
+              </CardTitle>
+              <CardDescription>
+                Configure and execute enhanced JIRA synchronization with advanced options.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SyncControlPanel
+                v-model:selectedProjects="syncConfig.selectedProjects"
+                v-model:dateRange="syncConfig.dateRange"
+                v-model:syncOptions="syncConfig.options"
+                :available-projects="availableProjects"
+                :is-syncing="isSyncing"
+                @sync="startSync"
+                @cancel="cancelSync"
+              />
+            </CardContent>
+          </Card>
+
+          <!-- Progress Tracking -->
+          <Card v-if="currentSync">
+            <CardHeader>
+              <CardTitle class="flex items-center">
+                <IconActivity class="w-5 h-5 mr-2" />
+                Sync Progress
+              </CardTitle>
+              <CardDescription>
+                Real-time progress tracking for the current synchronization operation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SyncProgressTracker
+                :sync-history="currentSync"
+                :detailed="true"
+                @cancel="cancelSync"
+              />
+            </CardContent>
+          </Card>
+
+          <!-- Metrics Dashboard -->
+          <Card>
+            <CardHeader>
+              <CardTitle class="flex items-center">
+                <IconBarChart class="w-5 h-5 mr-2" />
+                Sync Metrics
+              </CardTitle>
+              <CardDescription>
+                Performance metrics and resource breakdown from recent synchronizations.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SyncMetricsDashboard
+                :project-stats="projectStats"
+                :resource-breakdown="resourceBreakdown"
+                :loading="loadingMetrics"
+              />
+            </CardContent>
+          </Card>
+        </div>
+
+        <!-- Right Column: History & Status -->
+        <div class="space-y-6">
+          <!-- Project Status -->
+          <Card>
+            <CardHeader>
+              <CardTitle class="flex items-center">
+                <IconList class="w-5 h-5 mr-2" />
+                Project Status
+              </CardTitle>
+              <CardDescription>
+                Current synchronization status for each configured project.
+              </CardDescription>
+            </CardHeader>
+            <CardContent class="p-0">
+              <div class="max-h-80 overflow-y-auto">
+                <div class="space-y-2 p-4">
+                  <ProjectStatusItem
+                    v-for="project in projectStatuses"
+                    :key="project.project_key"
+                    :project="project"
+                    @retry="retryProject"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <!-- Recent Sync History -->
+          <Card>
+            <CardHeader>
+              <CardTitle class="flex items-center">
+                <IconHistory class="w-5 h-5 mr-2" />
+                Recent Syncs
+              </CardTitle>
+              <CardDescription>
+                History of recent synchronization operations and their results.
+              </CardDescription>
+            </CardHeader>
+            <CardContent class="p-0">
+              <SyncHistoryPanel
+                :sync-history="recentSyncs"
+                :loading="loadingHistory"
+                @retry="retrySync"
+                @view-details="viewSyncDetails"
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <!-- Advanced Operations -->
+      <Card>
+        <CardHeader>
+          <CardTitle class="flex items-center">
+            <IconTool class="w-5 h-5 mr-2" />
+            Advanced Operations
+          </CardTitle>
+          <CardDescription>
+            Advanced synchronization tools and maintenance operations.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Button
+              variant="outline"
+              @click="showDataValidation = true"
+              :disabled="isSyncing"
+            >
+              <IconShield class="w-4 h-4 mr-2" />
+              Data Validation
+            </Button>
+            <Button
+              variant="outline"
+              @click="showResourceReclassification = true"
+              :disabled="isSyncing"
+            >
+              <IconRefresh2 class="w-4 h-4 mr-2" />
+              Reclassify Resources
+            </Button>
+            <Button
+              variant="outline"
+              @click="showCleanupTools = true"
+              :disabled="isSyncing"
+            >
+              <IconTrash class="w-4 h-4 mr-2" />
+              Cleanup Tools
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+
+    <!-- Modals -->
+    <DataValidationModal
+      v-model:open="showDataValidation"
+      @validate="performDataValidation"
+    />
+    
+    <ResourceReclassificationModal
+      v-model:open="showResourceReclassification"
+      @reclassify="performResourceReclassification"
+    />
+    
+    <CleanupToolsModal
+      v-model:open="showCleanupTools"
+      @cleanup="performCleanup"
+    />
+  </AppLayout>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue'
+import { usePage, router } from '@inertiajs/vue3'
+import { useToast } from '@/composables/useToast'
+import { useEnhancedJiraSync } from '@/composables/useEnhancedJiraSync'
+import AppLayout from '@/layouts/AppLayout.vue'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import StatsCard from '@/components/ui/StatsCard.vue'
+import SyncControlPanel from '@/components/sync/SyncControlPanel.vue'
+import SyncProgressTracker from '@/components/sync/SyncProgressTracker.vue'
+import SyncMetricsDashboard from '@/components/sync/SyncMetricsDashboard.vue'
+import SyncHistoryPanel from '@/components/sync/SyncHistoryPanel.vue'
+import ProjectStatusItem from '@/components/sync/ProjectStatusItem.vue'
+import DataValidationModal from '@/components/sync/DataValidationModal.vue'
+import ResourceReclassificationModal from '@/components/sync/ResourceReclassificationModal.vue'
+import CleanupToolsModal from '@/components/sync/CleanupToolsModal.vue'
+import {
+  Wifi as IconWifi,
+  Folders as IconFolders,
+  Clock as IconClock,
+  Calendar as IconCalendar,
+  RefreshCw as IconRefresh,
+  Settings as IconSettings,
+  Activity as IconActivity,
+  BarChart3 as IconBarChart,
+  List as IconList,
+  History as IconHistory,
+  Wrench as IconTool,
+  Shield as IconShield,
+  RotateCcw as IconRefresh2,
+  Trash2 as IconTrash,
+} from 'lucide-vue-next'
+
+interface PageProps {
+  availableProjects: Array<{
+    project_key: string
+    name: string
+    id: number
+  }>
+  connectionStatus: {
+    connected: boolean
+    lastChecked: string | null
+  }
+  stats: {
+    totalProjects: number
+    lastSyncFormatted: string
+    totalHours: string
+    activeSyncs: number
+  }
+  projectStatuses: Array<{
+    project_key: string
+    last_sync_at: string | null
+    last_sync_status: string
+    issues_count: number
+    last_error: string | null
+  }>
+  recentSyncs: Array<{
+    id: number
+    started_at: string
+    completed_at: string | null
+    status: string
+    total_projects: number
+    processed_projects: number
+    progress_percentage: number
+    current_operation: string
+    error_count: number
+  }>
+}
+
+const page = usePage<PageProps>()
+const { toast } = useToast()
+const {
+  syncConfig,
+  isSyncing,
+  currentSync,
+  startSync: initiateSyncOperation,
+  cancelSync: cancelSyncOperation,
+} = useEnhancedJiraSync()
+
+// Component state
+const loadingStats = ref(false)
+const loadingMetrics = ref(false)
+const loadingHistory = ref(false)
+const testingConnection = ref(false)
+const showDataValidation = ref(false)
+const showResourceReclassification = ref(false)
+const showCleanupTools = ref(false)
+
+// Computed properties
+const availableProjects = computed(() => page.props.availableProjects)
+const connectionStatus = computed(() => page.props.connectionStatus)
+const stats = computed(() => page.props.stats)
+const projectStatuses = computed(() => page.props.projectStatuses)
+const recentSyncs = computed(() => page.props.recentSyncs)
+
+// Additional data for metrics dashboard
+const projectStats = ref([])
+const resourceBreakdown = ref([])
+
+// Methods
+const testConnection = async () => {
+  testingConnection.value = true
+  try {
+    await router.post('/admin/jira/test-connection', {}, {
+      preserveState: true,
+      onSuccess: () => {
+        toast.success('JIRA connection test successful')
+      },
+      onError: (errors) => {
+        toast.error('JIRA connection test failed: ' + Object.values(errors).join(', '))
+      },
+    })
+  } finally {
+    testingConnection.value = false
+  }
+}
+
+const startSync = async (config: any) => {
+  try {
+    await initiateSyncOperation(config)
+    toast.success('Enhanced JIRA sync initiated successfully')
+  } catch (error) {
+    toast.error('Failed to start sync: ' + (error as Error).message)
+  }
+}
+
+const cancelSync = async () => {
+  try {
+    await cancelSyncOperation()
+    toast.info('Sync operation cancelled')
+  } catch (error) {
+    toast.error('Failed to cancel sync: ' + (error as Error).message)
+  }
+}
+
+const retryProject = async (projectKey: string) => {
+  try {
+    await router.post(`/admin/jira/sync/project/${projectKey}/retry`, {}, {
+      preserveState: true,
+      onSuccess: () => {
+        toast.success(`Retry initiated for project ${projectKey}`)
+      },
+      onError: (errors) => {
+        toast.error('Failed to retry project: ' + Object.values(errors).join(', '))
+      },
+    })
+  } catch (error) {
+    toast.error('Failed to retry project: ' + (error as Error).message)
+  }
+}
+
+const retrySync = async (syncId: number) => {
+  try {
+    await router.post(`/admin/jira/sync/${syncId}/retry`, {}, {
+      preserveState: true,
+      onSuccess: () => {
+        toast.success('Sync retry initiated')
+      },
+      onError: (errors) => {
+        toast.error('Failed to retry sync: ' + Object.values(errors).join(', '))
+      },
+    })
+  } catch (error) {
+    toast.error('Failed to retry sync: ' + (error as Error).message)
+  }
+}
+
+const viewSyncDetails = (syncId: number) => {
+  router.visit(`/admin/jira/sync/${syncId}/details`)
+}
+
+const performDataValidation = async (config: any) => {
+  try {
+    await router.post('/admin/jira/validate-data', config, {
+      preserveState: true,
+      onSuccess: () => {
+        toast.success('Data validation completed')
+      },
+      onError: (errors) => {
+        toast.error('Data validation failed: ' + Object.values(errors).join(', '))
+      },
+    })
+  } catch (error) {
+    toast.error('Data validation failed: ' + (error as Error).message)
+  }
+}
+
+const performResourceReclassification = async (config: any) => {
+  try {
+    await router.post('/admin/jira/reclassify-resources', config, {
+      preserveState: true,
+      onSuccess: () => {
+        toast.success('Resource reclassification completed')
+      },
+      onError: (errors) => {
+        toast.error('Resource reclassification failed: ' + Object.values(errors).join(', '))
+      },
+    })
+  } catch (error) {
+    toast.error('Resource reclassification failed: ' + (error as Error).message)
+  }
+}
+
+const performCleanup = async (config: any) => {
+  try {
+    await router.post('/admin/jira/cleanup', config, {
+      preserveState: true,
+      onSuccess: () => {
+        toast.success('Cleanup operation completed')
+      },
+      onError: (errors) => {
+        toast.error('Cleanup operation failed: ' + Object.values(errors).join(', '))
+      },
+    })
+  } catch (error) {
+    toast.error('Cleanup operation failed: ' + (error as Error).message)
+  }
+}
+
+const loadMetrics = async () => {
+  loadingMetrics.value = true
+  try {
+    // Load project stats and resource breakdown
+    // This would typically be an API call
+    projectStats.value = []
+    resourceBreakdown.value = []
+  } finally {
+    loadingMetrics.value = false
+  }
+}
+
+// Lifecycle
+onMounted(() => {
+  loadMetrics()
+})
+</script>

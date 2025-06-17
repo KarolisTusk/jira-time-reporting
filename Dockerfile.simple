@@ -1,0 +1,37 @@
+# Simplified Dockerfile for DigitalOcean App Platform
+FROM php:8.2-cli-alpine
+
+# Install dependencies
+RUN apk add --no-cache \
+    postgresql-dev \
+    nodejs \
+    npm \
+    zip \
+    unzip \
+    git \
+    curl \
+    && docker-php-ext-install pdo pdo_pgsql
+
+# Install Composer
+COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app
+
+# Copy and install dependencies
+COPY composer.json composer.lock package*.json ./
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+RUN npm ci --only=production
+
+# Copy application
+COPY . .
+
+# Build frontend
+RUN npm run build
+
+# Final setup
+RUN composer dump-autoload --optimize
+RUN chmod -R 755 storage bootstrap/cache
+
+EXPOSE 8080
+
+CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8080
