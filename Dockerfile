@@ -43,8 +43,9 @@ RUN apk add --no-cache \
         bcmath \
         opcache
 
-# Install Redis extension
-RUN pecl install redis && docker-php-ext-enable redis
+# Install Redis extension via Alpine package (avoid compilation issues)
+RUN apk add --no-cache php82-pecl-redis && \
+    echo "extension=redis.so" > /usr/local/etc/php/conf.d/redis.ini
 
 # Install Composer
 COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
