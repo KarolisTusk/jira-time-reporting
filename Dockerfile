@@ -146,19 +146,20 @@ RUN echo '#!/bin/bash' > /start.sh \
     && echo '  echo "SQLite database created at $DB_PATH"' >> /start.sh \
     && echo 'fi' >> /start.sh \
     && echo '' >> /start.sh \
-    && echo '# Database connectivity check' >> /start.sh \
-    && echo 'echo "Checking database connection..."' >> /start.sh \
-    && echo 'php artisan migrate:status --quiet 2>/dev/null || {' >> /start.sh \
-    && echo '  echo "Database not ready or migrations needed, continuing..."' >> /start.sh \
-    && echo '  sleep 3' >> /start.sh \
-    && echo '}' >> /start.sh \
+    && echo '# Environment validation' >> /start.sh \
+    && echo 'echo "Validating environment variables..."' >> /start.sh \
+    && echo 'echo "DB_CONNECTION: ${DB_CONNECTION:-not set}"' >> /start.sh \
+    && echo 'echo "DB_HOST: ${DB_HOST:-not set}"' >> /start.sh \
+    && echo 'echo "Environment validation complete."' >> /start.sh \
     && echo '' >> /start.sh \
-    && echo '# Run Laravel optimization commands' >> /start.sh \
-    && echo 'php artisan config:cache' >> /start.sh \
-    && echo 'php artisan route:cache' >> /start.sh \
-    && echo 'php artisan view:cache' >> /start.sh \
+    && echo '# Run Laravel optimization commands (continue on failure)' >> /start.sh \
+    && echo 'php artisan config:clear || echo "Config clear failed, continuing..."' >> /start.sh \
+    && echo 'php artisan config:cache || echo "Config cache failed, continuing..."' >> /start.sh \
+    && echo 'php artisan route:cache || echo "Route cache failed, continuing..."' >> /start.sh \
+    && echo 'php artisan view:cache || echo "View cache failed, continuing..."' >> /start.sh \
     && echo '' >> /start.sh \
     && echo '# Start services with supervisor' >> /start.sh \
+    && echo 'rm -f /var/run/supervisor.sock' >> /start.sh \
     && echo 'exec /usr/bin/supervisord -c /etc/supervisord.conf' >> /start.sh \
     && chmod +x /start.sh
 
