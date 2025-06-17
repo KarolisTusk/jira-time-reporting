@@ -16,7 +16,7 @@ RUN npm run build
 # Production PHP image optimized for DigitalOcean
 FROM php:8.2-fpm-alpine
 
-# Install runtime dependencies only (truly optimized - removed redis server, git, zip)
+# Install runtime dependencies and pre-built Redis extension
 RUN apk add --no-cache \
     nginx \
     supervisor \
@@ -28,13 +28,8 @@ RUN apk add --no-cache \
     icu \
     libzip
 
-# Install build dependencies and build ALL PHP extensions in single layer
+# Install build dependencies and build PHP extensions (skip Redis - use pre-built)
 RUN apk add --no-cache --virtual .build-deps \
-    autoconf \
-    gcc \
-    g++ \
-    make \
-    m4 \
     postgresql-dev \
     libpng-dev \
     libjpeg-turbo-dev \
@@ -42,9 +37,6 @@ RUN apk add --no-cache --virtual .build-deps \
     icu-dev \
     oniguruma-dev \
     libzip-dev && \
-    export PATH="/usr/local/bin:$PATH" && \
-    export PHP_AUTOCONF="/usr/bin/autoconf" && \
-    export PHP_AUTOHEADER="/usr/bin/autoheader" && \
     docker-php-ext-configure gd --with-freetype --with-jpeg && \
     docker-php-ext-install \
         pdo \
@@ -56,9 +48,11 @@ RUN apk add --no-cache --virtual .build-deps \
         bcmath \
         opcache \
         pcntl && \
-    pecl install redis && \
-    docker-php-ext-enable redis && \
     apk del .build-deps
+
+# Install Redis extension via Alpine package (avoid compilation issues)
+RUN apk add --no-cache php82-pecl-redis && \
+    echo "extension=redis.so" > /usr/local/etc/php/conf.d/redis.ini
 
 # Install Composer
 COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
