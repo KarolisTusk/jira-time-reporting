@@ -81,8 +81,14 @@ COPY . .
 # Copy built frontend assets from builder stage
 COPY --from=frontend-builder /app/public/build ./public/build
 
-# Set proper permissions
-RUN chown -R www-data:www-data /var/www/html \
+# Create required directories and set proper permissions
+RUN mkdir -p /var/www/html/bootstrap/cache \
+    && mkdir -p /var/www/html/storage/app \
+    && mkdir -p /var/www/html/storage/framework/cache \
+    && mkdir -p /var/www/html/storage/framework/sessions \
+    && mkdir -p /var/www/html/storage/framework/views \
+    && mkdir -p /var/www/html/storage/logs \
+    && chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html/storage \
     && chmod -R 755 /var/www/html/bootstrap/cache
 
@@ -92,10 +98,9 @@ COPY docker/digitalocean/default.conf /etc/nginx/http.d/default.conf
 COPY docker/digitalocean/supervisord.conf /etc/supervisord.conf
 COPY docker/digitalocean/php.ini /usr/local/etc/php/conf.d/99-digitalocean.ini
 
-# Create required directories
+# Create system directories
 RUN mkdir -p /var/log/supervisor \
-    && mkdir -p /run/nginx \
-    && mkdir -p /var/www/html/storage/logs
+    && mkdir -p /run/nginx
 
 # Generate optimized autoloader
 RUN composer dump-autoload --optimize
@@ -111,11 +116,7 @@ EXPOSE 8080
 RUN echo '#!/bin/bash' > /start.sh \
     && echo 'set -e' >> /start.sh \
     && echo '' >> /start.sh \
-    && echo '# Ensure storage directories exist' >> /start.sh \
-    && echo 'mkdir -p /var/www/html/storage/{app,framework,logs}' >> /start.sh \
-    && echo 'mkdir -p /var/www/html/storage/framework/{cache,sessions,views}' >> /start.sh \
-    && echo '' >> /start.sh \
-    && echo '# Set proper permissions' >> /start.sh \
+    && echo '# Verify permissions (directories already created)' >> /start.sh \
     && echo 'chown -R www-data:www-data /var/www/html/storage' >> /start.sh \
     && echo 'chown -R www-data:www-data /var/www/html/bootstrap/cache' >> /start.sh \
     && echo '' >> /start.sh \
