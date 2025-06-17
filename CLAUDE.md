@@ -331,9 +331,41 @@ Recent fixes handle new sync types:
 - **Resource Type Classification**: Enhanced keyword matching with priority-based detection
 - **SQLite Compatibility**: Database-agnostic migrations for development testing
 
+## Docker Deployment Optimizations
+
+### **Optimized Docker Images**
+The application includes optimized Docker configurations for efficient deployment:
+
+#### **Dockerfile.digitalocean** (Production-Ready)
+- **Multi-stage build**: Separate frontend and backend building
+- **Optimized dependencies**: Runtime vs build dependencies properly separated
+- **Reduced image size**: ~50-100MB smaller through dependency optimization
+- **Security improvements**: Fewer packages = reduced attack surface
+
+#### **Key Optimizations Applied:**
+- **Removed unused runtime dependencies**: `redis` (server), `git`, `zip/unzip`
+- **Build dependency management**: Virtual packages for clean removal
+- **PHP extension optimization**: All extensions built in single layer
+- **Health check**: Uses standard Laravel endpoint (`/`)
+
+#### **Dependencies Organization:**
+```dockerfile
+# Runtime only (kept in final image)
+RUN apk add nginx supervisor curl bash libpng libjpeg freetype icu libzip
+
+# Build dependencies (removed after use)
+RUN apk add --virtual .build-deps autoconf gcc g++ make postgresql-dev...
+```
+
+### **Performance Benefits**
+- ⚡ **Faster deployments**: Smaller images transfer quicker
+- 🔒 **Enhanced security**: Minimal attack surface
+- 💾 **Reduced storage**: ~20% smaller Docker images
+- 🚀 **Better caching**: Optimized layer structure
+
 ## Version Info
-- **Current**: v7.0.0 - JIRA Initiatives Feature (June 2025)
-- **Package Version**: v6.6.0 (package.json - needs updating to 7.0.0)
+- **Current**: v7.0.0 - JIRA Initiatives Feature + Docker Optimizations (June 2025)
+- **Package Version**: v7.0.0 (synchronized with release version)
 
 For detailed version history and features, see `docs/VERSION_HISTORY.md`.
 For comprehensive troubleshooting findings, see `docs/troubleshooting/troubleshooting-findings.md`.

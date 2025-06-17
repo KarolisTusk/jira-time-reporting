@@ -1,7 +1,7 @@
 {
     "name": "jira-time-reporting",
     "description": "JIRA Time Consumption Reporting application built with Laravel 12, Vue 3, and PostgreSQL",
-    "version": "6.6.0",
+    "version": "7.0.0",
     "private": true,
     "type": "module",
     "scripts": {

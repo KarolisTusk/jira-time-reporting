@@ -272,7 +272,7 @@ After deployment, access these URLs:
 
 - **Application:** `http://your-domain.com`
 - **Horizon Dashboard:** `http://your-domain.com/horizon`
-- **Health Check:** `http://your-domain.com/health`
+- **Health Check:** `http://your-domain.com/`
 
 ## 🛡️ Security Considerations
 
