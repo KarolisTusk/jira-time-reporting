@@ -160,6 +160,7 @@ RUN echo '#!/bin/bash' > /start.sh \
     && echo '' >> /start.sh \
     && echo '# Start services with supervisor' >> /start.sh \
     && echo 'rm -f /var/run/supervisor.sock' >> /start.sh \
+    && echo 'mkdir -p /var/log/supervisor' >> /start.sh \
     && echo 'exec /usr/bin/supervisord -c /etc/supervisord.conf' >> /start.sh \
     && chmod +x /start.sh
 
