@@ -159,8 +159,10 @@ RUN echo '#!/bin/bash' > /start.sh \
     && echo 'php artisan view:cache || echo "View cache failed, continuing..."' >> /start.sh \
     && echo '' >> /start.sh \
     && echo '# Start services with supervisor' >> /start.sh \
+    && echo 'echo "Starting supervisor..."' >> /start.sh \
     && echo 'rm -f /var/run/supervisor.sock' >> /start.sh \
-    && echo 'mkdir -p /var/log/supervisor' >> /start.sh \
+    && echo 'mkdir -p /var/log/supervisor /run/nginx' >> /start.sh \
+    && echo 'chown -R www-data:www-data /run/nginx' >> /start.sh \
     && echo 'exec /usr/bin/supervisord -c /etc/supervisord.conf' >> /start.sh \
     && chmod +x /start.sh
 
