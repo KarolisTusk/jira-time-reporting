@@ -992,18 +992,35 @@ class EnhancedJiraSyncController extends Controller
             return [];
         }
 
-        // Try to decode as JSON first
-        $decoded = json_decode($syncHistory->error_details, true);
-        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-            return $decoded;
+        // error_details is already cast as array in the model, so check if it's already an array
+        if (is_array($syncHistory->error_details)) {
+            return $syncHistory->error_details;
         }
 
-        // If not JSON, treat as plain text and create a structured error
+        // If it's a string, try to decode as JSON
+        if (is_string($syncHistory->error_details)) {
+            $decoded = json_decode($syncHistory->error_details, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return $decoded;
+            }
+
+            // If not JSON, treat as plain text and create a structured error
+            return [
+                [
+                    'type' => 'General Error',
+                    'message' => $syncHistory->error_details,
+                    'context' => 'Raw error data',
+                    'timestamp' => $syncHistory->updated_at ? $syncHistory->updated_at->toISOString() : null,
+                ]
+            ];
+        }
+
+        // Fallback for any other type
         return [
             [
-                'type' => 'General Error',
-                'message' => $syncHistory->error_details,
-                'context' => 'Raw error data',
+                'type' => 'Unknown Error',
+                'message' => 'Error details in unexpected format',
+                'context' => 'Type: ' . gettype($syncHistory->error_details),
                 'timestamp' => $syncHistory->updated_at ? $syncHistory->updated_at->toISOString() : null,
             ]
         ];

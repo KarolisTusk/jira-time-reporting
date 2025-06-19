@@ -20,6 +20,7 @@
         "laravel/tinker": "^2.10.1",
         "lesstif/php-jira-rest-client": "^5.10",
         "maatwebsite/excel": "^3.1",
+        "sentry/sentry-laravel": "^4.15",
         "tightenco/ziggy": "^2.4"
     },
     "require-dev": {

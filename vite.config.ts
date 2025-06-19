@@ -3,6 +3,7 @@ import laravel from 'laravel-vite-plugin';
 import path from 'path';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 
 export default defineConfig({
     server: {
@@ -32,6 +33,18 @@ export default defineConfig({
                 },
             },
         }),
+        // Sentry source maps upload (only in production builds with auth token)
+        ...(process.env.SENTRY_AUTH_TOKEN ? [sentryVitePlugin({
+            org: process.env.SENTRY_ORG,
+            project: process.env.SENTRY_PROJECT,
+            authToken: process.env.SENTRY_AUTH_TOKEN,
+            sourcemaps: {
+                assets: ['./public/build/**'],
+                ignore: ['node_modules'],
+                filesToDeleteAfterUpload: ['./public/build/**/*.map'],
+            },
+            disable: process.env.NODE_ENV !== 'production',
+        })] : []),
     ],
     resolve: {
         alias: {
@@ -40,6 +53,7 @@ export default defineConfig({
     },
     // Add build configuration for better development experience and fix chunk size
     build: {
+        sourcemap: true, // Enable source maps for Sentry
         chunkSizeWarningLimit: 1000, // Increase limit to 1000KB
         rollupOptions: {
             output: {

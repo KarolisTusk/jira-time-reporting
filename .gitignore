@@ -22,3 +22,7 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Sentry configuration
+.sentryclirc
+sentry.properties

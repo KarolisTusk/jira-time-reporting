@@ -53,7 +53,7 @@ class MonitorJiraSyncJobs extends Command
                 status,
                 COUNT(*) as count,
                 AVG(CASE WHEN completed_at IS NOT NULL THEN 
-                    CAST((julianday(completed_at) - julianday(started_at)) * 86400 AS INTEGER)
+                    EXTRACT(EPOCH FROM (completed_at - started_at))
                     ELSE NULL END) as avg_duration_seconds
             ')
             ->groupBy('status')

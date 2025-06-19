@@ -63,6 +63,44 @@ services:
         value: "12"
       - key: LOG_LEVEL
         value: error
+      
+      # Sentry Error Tracking
+      - key: SENTRY_LARAVEL_DSN
+        value: "https://6201d48e2849126b0c9e1f5db42d4396@o4509526861676544.ingest.us.sentry.io/4509526863577088"
+      - key: SENTRY_ENVIRONMENT
+        value: production
+      - key: SENTRY_TRACES_SAMPLE_RATE
+        value: "0.1"
+      
+      # Frontend Environment Variables
+      - key: VITE_APP_NAME
+        value: "JIRA Time Reporter"
+      - key: VITE_APP_ENV
+        value: production
+      - key: VITE_SENTRY_DSN
+        value: "https://59d8da25303031f0ec664fe407c593e3@o4509526861676544.ingest.us.sentry.io/4509526931013632"
+      
+      # Enhanced Sentry Database Tracking
+      - key: SENTRY_TRACE_SQL_QUERIES_ENABLED
+        value: "true"
+      - key: SENTRY_TRACE_SQL_BINDINGS_ENABLED
+        value: "false"
+      - key: SENTRY_TRACE_SQL_ORIGIN_ENABLED
+        value: "true"
+      - key: SENTRY_TRACE_SQL_ORIGIN_THRESHOLD_MS
+        value: "100"
+      - key: SENTRY_BREADCRUMBS_SQL_QUERIES_ENABLED
+        value: "true"
+      - key: SENTRY_BREADCRUMBS_SQL_BINDINGS_ENABLED
+        value: "false"
+      
+      # Sentry Source Maps Configuration
+      - key: SENTRY_ORG
+        value: "your-sentry-org"
+      - key: SENTRY_PROJECT
+        value: "your-sentry-project"
+      - key: SENTRY_AUTH_TOKEN
+        value: "your-auth-token"
 
 # Database configuration is external (Neon PostgreSQL)
 

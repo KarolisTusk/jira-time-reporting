@@ -1,32 +1,34 @@
 # DigitalOcean App Platform Optimized Dockerfile
 # Designed for Laravel 12 + Vue 3 + Queue Processing
+# Fixed for Alpine 3.19 compatibility and proper dependency management
 
-FROM node:20-alpine AS frontend-builder
+FROM node:20-alpine3.19 AS frontend-builder
 
-# Cache bust to force rebuild
-ARG CACHE_BUST=2025-06-17-06-55
+# Cache bust to force clean rebuild
+ARG CACHE_BUST=2025-06-19-16-00
+RUN echo "Frontend Cache bust: $CACHE_BUST"
 
 # Update npm to latest version
 RUN npm install -g npm@11.4.2
 
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Copy package files and install dependencies (include dev dependencies for build)
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy source files and build frontend assets
 COPY . .
 RUN npm run build
 
-# Production PHP image optimized for DigitalOcean
-FROM php:8.2-fpm-alpine
+# Production PHP image optimized for DigitalOcean with Alpine 3.19
+FROM php:8.2-fpm-alpine3.19
 
 # Cache bust to force rebuild of PHP layers
-ARG CACHE_BUST=2025-06-17-06-55
+ARG CACHE_BUST=2025-06-19-16-00
 RUN echo "PHP Cache bust: $CACHE_BUST"
 
-# Install runtime dependencies and pre-built Redis extension
+# Install essential system packages and runtime dependencies
 RUN apk add --no-cache \
     nginx \
     supervisor \
@@ -38,19 +40,31 @@ RUN apk add --no-cache \
     icu \
     libzip \
     postgresql-client \
-    libpq
+    libpq \
+    zlib
 
-# Install build dependencies and build PHP extensions (skip Redis - use pre-built)
+# Install build dependencies with complete toolchain for PHP extensions
 RUN apk add --no-cache --virtual .build-deps \
+    $PHPIZE_DEPS \
+    autoconf \
+    gcc \
+    g++ \
+    make \
+    libc-dev \
     postgresql-dev \
     libpng-dev \
     libjpeg-turbo-dev \
     freetype-dev \
     icu-dev \
     oniguruma-dev \
-    libzip-dev && \
-    docker-php-ext-configure gd --with-freetype --with-jpeg && \
-    docker-php-ext-install \
+    libzip-dev \
+    zlib-dev \
+    linux-headers
+
+# Configure and install PHP extensions with proper error handling
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
+    docker-php-ext-configure zip && \
+    docker-php-ext-install -j$(nproc) \
         pdo \
         pdo_pgsql \
         gd \
@@ -60,14 +74,18 @@ RUN apk add --no-cache --virtual .build-deps \
         bcmath \
         opcache \
         pcntl && \
+    php -m | grep -E "(zip|pdo|gd|intl|mbstring|bcmath|opcache|pcntl)" && \
+    echo "All PHP extensions installed successfully" && \
     apk del .build-deps
 
-# Install Redis extension via Alpine package (avoid compilation issues)
-# Cache bust: 2025-06-17-07:10 - Force rebuild from this point
-RUN apk add --no-cache php82-redis && \
-    echo "extension=redis.so" > /usr/local/etc/php/conf.d/20-redis.ini && \
+# Install Redis extension via PECL (more reliable than Alpine package)
+RUN apk add --no-cache --virtual .redis-build-deps \
+    $PHPIZE_DEPS && \
+    pecl install redis && \
+    docker-php-ext-enable redis && \
+    apk del .redis-build-deps && \
     echo "Redis extension installed successfully" && \
-    php -m | grep redis || echo "Redis extension check failed"
+    php -m | grep redis && echo "Redis extension verified" || echo "Redis extension check failed"
 
 # Install Composer
 COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
@@ -121,50 +139,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Expose DigitalOcean App Platform port
 EXPOSE 8080
 
-# Create startup script for DigitalOcean
-RUN echo '#!/bin/bash' > /start.sh \
-    && echo 'set -e' >> /start.sh \
-    && echo '' >> /start.sh \
-    && echo '# Ensure storage directories exist with proper permissions' >> /start.sh \
-    && echo 'mkdir -p /var/www/html/storage/{app,framework,logs}' >> /start.sh \
-    && echo 'mkdir -p /var/www/html/storage/framework/{cache,sessions,views}' >> /start.sh \
-    && echo 'mkdir -p /var/www/html/bootstrap/cache' >> /start.sh \
-    && echo '' >> /start.sh \
-    && echo '# Set proper ownership and permissions' >> /start.sh \
-    && echo 'chown -R www-data:www-data /var/www/html/storage' >> /start.sh \
-    && echo 'chown -R www-data:www-data /var/www/html/bootstrap/cache' >> /start.sh \
-    && echo 'chmod -R 775 /var/www/html/storage' >> /start.sh \
-    && echo 'chmod -R 775 /var/www/html/bootstrap/cache' >> /start.sh \
-    && echo '' >> /start.sh \
-    && echo '# Handle SQLite database for testing' >> /start.sh \
-    && echo 'if [ "${DB_CONNECTION}" = "sqlite" ]; then' >> /start.sh \
-    && echo '  DB_PATH="${DB_DATABASE:-/var/www/html/database/database.sqlite}"' >> /start.sh \
-    && echo '  mkdir -p "$(dirname "$DB_PATH")"' >> /start.sh \
-    && echo '  touch "$DB_PATH"' >> /start.sh \
-    && echo '  chown www-data:www-data "$DB_PATH"' >> /start.sh \
-    && echo '  chmod 664 "$DB_PATH"' >> /start.sh \
-    && echo '  echo "SQLite database created at $DB_PATH"' >> /start.sh \
-    && echo 'fi' >> /start.sh \
-    && echo '' >> /start.sh \
-    && echo '# Environment validation' >> /start.sh \
-    && echo 'echo "Validating environment variables..."' >> /start.sh \
-    && echo 'echo "DB_CONNECTION: ${DB_CONNECTION:-not set}"' >> /start.sh \
-    && echo 'echo "DB_HOST: ${DB_HOST:-not set}"' >> /start.sh \
-    && echo 'echo "Environment validation complete."' >> /start.sh \
-    && echo '' >> /start.sh \
-    && echo '# Run Laravel optimization commands (continue on failure)' >> /start.sh \
-    && echo 'php artisan config:clear || echo "Config clear failed, continuing..."' >> /start.sh \
-    && echo 'php artisan config:cache || echo "Config cache failed, continuing..."' >> /start.sh \
-    && echo 'php artisan route:cache || echo "Route cache failed, continuing..."' >> /start.sh \
-    && echo 'php artisan view:cache || echo "View cache failed, continuing..."' >> /start.sh \
-    && echo '' >> /start.sh \
-    && echo '# Start services with supervisor' >> /start.sh \
-    && echo 'echo "Starting supervisor..."' >> /start.sh \
-    && echo 'rm -f /var/run/supervisor.sock' >> /start.sh \
-    && echo 'mkdir -p /var/log/supervisor /run/nginx' >> /start.sh \
-    && echo 'chown -R www-data:www-data /run/nginx' >> /start.sh \
-    && echo 'exec /usr/bin/supervisord -c /etc/supervisord.conf' >> /start.sh \
-    && chmod +x /start.sh
+# Copy enhanced startup script
+COPY docker/digitalocean/start.sh /start.sh
+RUN chmod +x /start.sh
 
 # Start with our custom script
 CMD ["/start.sh"]
